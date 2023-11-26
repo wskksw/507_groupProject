@@ -4,7 +4,16 @@
 #include <stdlib.h>
 #include <limits.h>
 #include <time.h>
-
+/*
+Results:
+Running BFS implementation tests...
+OMP and serial BFS on sparse 10 node graph passed
+OMP and serial BFS on medium 1000 node graph passed
+OMP and serial BFS on sparse 1000 node graph passed
+OMP and serial BFS on medium 10 node graph passed
+OMP and serial BFS on dense 10 node graph passed
+OMP and serial BFS on dense 1000 node graph passed
+12/12 tests passed successfully.*/
 int testCount = 0;
 void ompBFS(int start, Graph *G, int *distance);
 void bfsCPU(int start, Graph *G, int *distance, int *visited);
@@ -68,7 +77,7 @@ void test_Sparse_10Nodes()
   free(distanceParallel);
   freeGraph(myGraph);
 
-  printf("test_bfsImplementations passed.\n");
+  printf("OMP and serial BFS on sparse 10 node graph passed\n");
 }
 
 void test_Medium_1000Nodes()
