@@ -21,11 +21,6 @@ void printGraph(Graph *graph)
 
 void bfsCPU(int start, Graph *G, int *distance, int *visited)
 {
-  for (int i = 0; i < G->numVertices; i++)
-  {
-    distance[i] = INT_MAX;
-    visited[i] = 0;
-  }
   distance[start] = 0;
 
   int *queue = (int *)malloc(G->numVertices * sizeof(int)); // Queue
@@ -50,15 +45,15 @@ void bfsCPU(int start, Graph *G, int *distance, int *visited)
 
   free(queue);
 }
-void ompBFS(int start, Graph *G, int *distance); // Make sure this is declared
+void ompBFS(int start, Graph *G, int *distance);
 
 int main()
 {
-  int numVertices = 50000; // Example number of vertices
+  int numVertices = 10; // Example number of vertices
   Graph *myGraph = initGraph(numVertices, Sparse);
   printf("Graph with %d vertices and %d edges\n", myGraph->numVertices, myGraph->numEdges);
-  // printf("Graph's Adjacency List:\n");
-  // printGraph(myGraph);
+  printf("Graph's Adjacency List:\n");
+  printGraph(myGraph);
 
   // Allocate memory for BFS distance and visited arrays
   int *distance = (int *)malloc(numVertices * sizeof(int));
@@ -66,6 +61,10 @@ int main()
   // Timing variables
   clock_t startSerial, endSerial, startParallel, endParallel;
 
+  for (int i = 0; i < myGraph->numVertices; i++)
+  {
+    distance[i] = INT_MAX;
+  }
   // Perform standard BFS
   startSerial = clock();
   bfsCPU(0, myGraph, distance, visited);
@@ -82,7 +81,6 @@ int main()
   for (int i = 0; i < numVertices; i++)
   {
     distance[i] = INT_MAX;
-    visited[i] = 0;
   }
 
   // Perform OpenMP BFS

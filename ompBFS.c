@@ -90,3 +90,30 @@ void ompBFS(int start, Graph *G, int *distance)
   free(localNextFrontiers);
   free(localNextFrontierSizes);
 }
+
+void bfsCPU(int start, Graph *G, int *distance, int *visited)
+{
+  distance[start] = 0;
+
+  int *queue = (int *)malloc(G->numVertices * sizeof(int)); // Queue
+  int front = 0, rear = 0;                                  // Queue front and rear
+
+  // Enqueue start vertex
+  queue[rear++] = start;
+
+  while (front < rear)
+  {
+    int current = queue[front++];
+    for (int i = G->edgesOffset[current]; i < G->edgesOffset[current] + G->edgesSize[current]; ++i)
+    {
+      int v = G->adjacencyList[i];
+      if (distance[v] == INT_MAX)
+      {
+        distance[v] = distance[current] + 1;
+        queue[rear++] = v;
+      }
+    }
+  }
+
+  free(queue);
+}

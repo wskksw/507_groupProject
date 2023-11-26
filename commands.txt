@@ -1,3 +1,8 @@
 /usr/local/opt/llvm/bin/clang -o program main.c ompBFS.c graph.c -fopenmp
 ./program
 
+/usr/local/opt/llvm/bin/clang -o testInit graphInitTest.c graph.c
+./testInit
+
+/usr/local/opt/llvm/bin/clang -o testBFS cpuBFSTest.c ompBFS.c graph.c -fopenmp
+./testBFS
