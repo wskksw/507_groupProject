@@ -4,7 +4,7 @@
 #include <omp.h>
 #include "graph.h"
 
-void ompBFS(int start, Graph *G, int *distance)
+void ompBFS(int start, Graph *G, int *visited)
 {
   int numThreads;
 #pragma omp parallel
@@ -23,7 +23,7 @@ void ompBFS(int start, Graph *G, int *distance)
   int *currentFrontier = (int *)malloc(G->numVertices * sizeof(int));
   int currentFrontierSize = 1;
   currentFrontier[0] = start;
-  distance[start] = 0;
+  visited[start] = 1;
 
   while (currentFrontierSize > 0)
   {
@@ -45,10 +45,10 @@ void ompBFS(int start, Graph *G, int *distance)
         {
           int v = G->adjacencyList[j];
           {
-            if (distance[v] == INT_MAX)
+            if (visited[v] == INT_MAX)
+#pragma omp critical
             {
-              distance[v] = distance[current] + 1;
-              // #pragma omp critical
+              visited[v] = 1;
               localNextFrontier[localNextFrontierSize++] = v;
             }
           }
@@ -91,9 +91,9 @@ void ompBFS(int start, Graph *G, int *distance)
   free(localNextFrontierSizes);
 }
 
-void bfsCPU(int start, Graph *G, int *distance, int *visited)
+void bfsCPU(int start, Graph *G, int *visited)
 {
-  distance[start] = 0;
+  visited[start] = 1;
 
   int *queue = (int *)malloc(G->numVertices * sizeof(int)); // Queue
   int front = 0, rear = 0;                                  // Queue front and rear
@@ -107,9 +107,9 @@ void bfsCPU(int start, Graph *G, int *distance, int *visited)
     for (int i = G->edgesOffset[current]; i < G->edgesOffset[current] + G->edgesSize[current]; ++i)
     {
       int v = G->adjacencyList[i];
-      if (distance[v] == INT_MAX)
+      if (visited[v] == INT_MAX)
       {
-        distance[v] = distance[current] + 1;
+        visited[v] = 1;
         queue[rear++] = v;
       }
     }

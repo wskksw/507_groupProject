@@ -6,7 +6,7 @@
 #include <time.h>
 
 #define DEBUG(x)
-#define N_THREADS_PER_BLOCK (1 << 5)
+#define N_THREADS_PER_BLOCK (1 << 5) // 32
 
 Graph *initGraph(int numVertices, GraphDensity density)
 {
@@ -109,7 +109,7 @@ __global__ void printDeviceArray(int *d_arr, int n)
   }
 }
 
-__global__ void computeNextQueue(int *adjacencyList, int *edgesOffset, int *edgesSize, int *distance,
+__global__ void computeNextQueue(int *adjacencyList, int *edgesOffset, int *edgesSize, int *visited,
                                  int queueSize, int *currentQueue, int *nextQueueSize, int *nextQueue, int level)
 {
   const int tid = blockIdx.x * blockDim.x + threadIdx.x;
@@ -119,21 +119,21 @@ __global__ void computeNextQueue(int *adjacencyList, int *edgesOffset, int *edge
     for (int i = edgesOffset[current]; i < edgesOffset[current] + edgesSize[current]; ++i)
     {
       int v = adjacencyList[i];
-      if (distance[v] == INT_MAX)
+      if (oldVisited == INT_MAX) // Check if the node was previously unvisited
       {
-        distance[v] = level + 1;
-        int position = atomicAdd(nextQueueSize, 1);
+        int oldVisited = atomicExch(&visited[v], 1); // Atomically set visited status to 1
+        int position = atomicAdd(nextQueueSize, 1);  // Atomically add to next queue
         nextQueue[position] = v;
       }
     }
   }
 }
-void bfsGPU(int start, Graph *G, int *distance)
+void bfsGPU(int start, Graph *G, int *visited)
 {
   const int n_blocks = (G->numVertices + N_THREADS_PER_BLOCK - 1) / N_THREADS_PER_BLOCK;
 
   // Initialization of GPU variables
-  int *d_adjacencyList, *d_edgesOffset, *d_edgesSize, *d_firstQueue, *d_secondQueue, *d_nextQueueSize, *d_distance;
+  int *d_adjacencyList, *d_edgesOffset, *d_edgesSize, *d_firstQueue, *d_secondQueue, *d_nextQueueSize, *d_visited;
 
   // Allocation on device
   const int size = G->numVertices * sizeof(int);
@@ -143,7 +143,7 @@ void bfsGPU(int start, Graph *G, int *distance)
   cudaMalloc((void **)&d_edgesSize, size);
   cudaMalloc((void **)&d_firstQueue, size);
   cudaMalloc((void **)&d_secondQueue, size);
-  cudaMalloc((void **)&d_distance, size);
+  cudaMalloc((void **)&d_visited, size);
   cudaMalloc((void **)&d_nextQueueSize, sizeof(int));
 
   // Copy inputs to device
@@ -151,13 +151,8 @@ void bfsGPU(int start, Graph *G, int *distance)
   cudaMemcpy(d_edgesOffset, G->edgesOffset, size, cudaMemcpyHostToDevice);
   cudaMemcpy(d_edgesSize, G->edgesSize, size, cudaMemcpyHostToDevice);
 
-  // Initialize distance array on host and copy to device
-  for (int i = 0; i < G->numVertices; ++i)
-  {
-    distance[i] = INT_MAX;
-  }
-  distance[start] = 0;
-  cudaMemcpy(d_distance, distance, size, cudaMemcpyHostToDevice);
+  visited[start] = 1;
+  cudaMemcpy(d_visited, visited, size, cudaMemcpyHostToDevice);
 
   int currentQueueSize = 1, level = 0;
 
@@ -175,7 +170,7 @@ void bfsGPU(int start, Graph *G, int *distance)
       d_nextQueue = d_firstQueue;
     }
 
-    computeNextQueue<<<n_blocks, N_THREADS_PER_BLOCK>>>(d_adjacencyList, d_edgesOffset, d_edgesSize, d_distance,
+    computeNextQueue<<<n_blocks, N_THREADS_PER_BLOCK>>>(d_adjacencyList, d_edgesOffset, d_edgesSize, d_visited,
                                                         currentQueueSize, d_currentQueue, d_nextQueueSize, d_nextQueue, level);
     cudaDeviceSynchronize();
     ++level;
@@ -184,7 +179,7 @@ void bfsGPU(int start, Graph *G, int *distance)
     cudaMemcpy(d_nextQueueSize, &resetQueueSize, sizeof(int), cudaMemcpyHostToDevice);
   }
 
-  cudaMemcpy(distance, d_distance, size, cudaMemcpyDeviceToHost);
+  cudaMemcpy(visited, d_visited, size, cudaMemcpyDeviceToHost);
 
   // Cleanup
   cudaFree(d_adjacencyList);
@@ -192,24 +187,31 @@ void bfsGPU(int start, Graph *G, int *distance)
   cudaFree(d_edgesSize);
   cudaFree(d_firstQueue);
   cudaFree(d_secondQueue);
-  cudaFree(d_distance);
+  cudaFree(d_visited);
   cudaFree(d_nextQueueSize);
 }
 int main()
 {
-  int numVertices = 500; // Example number of vertices
-  Graph *myGraph = initGraph(numVertices, Sparse);
+  int numVertices = 25; // Example number of vertices
+  Graph *myGraph = initGraph(numVertices, Dense);
 
-  // printf("Graph's Adjacency List:\n");
-  // printGraph(myGraph);
+  printf("Graph's Adjacency List:\n");
+  printGraph(myGraph);
 
-  // Allocate memory for BFS distance and visited arrays
-  int *distance = (int *)malloc(numVertices * sizeof(int));
+  // Allocate memory for BFS visitedand visited arrays
   int *visited = (int *)malloc(numVertices * sizeof(int));
-  clock_t startSerial, endSerial, startParallel, endParallel;
+  for (int i = 0; i < G->numVertices; ++i)
+  {
+    visited[i] = INT_MAX;
+  }
+  printf("Visited array before CUDA BFS\n");
+  printArray(visited);
+  clock_t startParallel, endParallel;
   startParallel = clock();
-  bfsGPU(0, myGraph, distance);
+  bfsGPU(0, myGraph, visited);
   endParallel = clock();
   double timeTakenParallel = (double)(endParallel - startParallel) / CLOCKS_PER_SEC;
   printf("Cuda BFS took %f seconds.\n", timeTakenParallel);
+  printf("Visited array after CUDA BFS\n");
+  printArray(visited);
 }

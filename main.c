@@ -19,33 +19,8 @@ void printGraph(Graph *graph)
   }
 }
 
-void bfsCPU(int start, Graph *G, int *distance, int *visited)
-{
-  distance[start] = 0;
-
-  int *queue = (int *)malloc(G->numVertices * sizeof(int)); // Queue
-  int front = 0, rear = 0;                                  // Queue front and rear
-
-  // Enqueue start vertex
-  queue[rear++] = start;
-
-  while (front < rear)
-  {
-    int current = queue[front++];
-    for (int i = G->edgesOffset[current]; i < G->edgesOffset[current] + G->edgesSize[current]; ++i)
-    {
-      int v = G->adjacencyList[i];
-      if (distance[v] == INT_MAX)
-      {
-        distance[v] = distance[current] + 1;
-        queue[rear++] = v;
-      }
-    }
-  }
-
-  free(queue);
-}
-void ompBFS(int start, Graph *G, int *distance);
+void bfsCPU(int start, Graph *G, int *visited);
+void ompBFS(int start, Graph *G, int *visited);
 
 int main()
 {
@@ -55,50 +30,48 @@ int main()
   printf("Graph's Adjacency List:\n");
   printGraph(myGraph);
 
-  // Allocate memory for BFS distance and visited arrays
-  int *distance = (int *)malloc(numVertices * sizeof(int));
+  // Allocate memory for BFS visited and visited arrays
   int *visited = (int *)malloc(numVertices * sizeof(int));
   // Timing variables
   clock_t startSerial, endSerial, startParallel, endParallel;
 
   for (int i = 0; i < myGraph->numVertices; i++)
   {
-    distance[i] = INT_MAX;
+    visited[i] = INT_MAX;
   }
   // Perform standard BFS
   startSerial = clock();
-  bfsCPU(0, myGraph, distance, visited);
+  bfsCPU(0, myGraph, visited);
   endSerial = clock();
   double timeTakenSerial = (double)(endSerial - startSerial) / CLOCKS_PER_SEC;
   printf("Standard BFS took %f seconds.\n", timeTakenSerial);
-  // printf("Distances from vertex 0:\n");
-  // for (int i = 0; i < numVertices; i++)
-  // {
-  //   printf("Vertex %d: %d\n", i, distance[i]);
-  // }
-
-  // Reset distance and visited for ompBFS
+  printf("Visiteds from vertex 0:\n");
   for (int i = 0; i < numVertices; i++)
   {
-    distance[i] = INT_MAX;
+    printf("Vertex %d: %d\n", i, visited[i]);
+  }
+
+  // Reset visited and visited for ompBFS
+  for (int i = 0; i < numVertices; i++)
+  {
+    visited[i] = INT_MAX;
   }
 
   // Perform OpenMP BFS
   startParallel = clock();
-  ompBFS(0, myGraph, distance);
+  ompBFS(0, myGraph, visited);
   endParallel = clock();
   double timeTakenParallel = (double)(endParallel - startParallel) / CLOCKS_PER_SEC;
   printf("OpenMP BFS took %f seconds.\n", timeTakenParallel);
 
-  // Print distances from vertex 0 (from ompBFS)
-  // printf("Distances from vertex 0:\n");
-  // for (int i = 0; i < numVertices; i++)
-  // {
-  //   printf("Vertex %d: %d\n", i, distance[i]);
-  // }
+  // Print visiteds from vertex 0(from ompBFS)
+  printf("Visiteds from vertex 0:\n");
+  for (int i = 0; i < numVertices; i++)
+  {
+    printf("Vertex %d: %d\n", i, visited[i]);
+  }
 
   // Free allocated resources
-  free(distance);
   free(visited);
   freeGraph(myGraph);
 
