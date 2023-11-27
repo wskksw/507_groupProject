@@ -8,6 +8,20 @@
 #define DEBUG(x)
 #define N_THREADS_PER_BLOCK (1 << 5) // 32
 
+void printGraph(Graph *graph)
+{
+  printf("Graph with %d vertices and %d edges\n", graph->numVertices, graph->numEdges);
+
+  for (int i = 0; i < graph->numVertices; i++)
+  {
+    printf("Vertex %d: ", i);
+    for (int j = 0; j < graph->edgesSize[i]; j++)
+    {
+      printf("%d ", graph->adjacencyList[graph->edgesOffset[i] + j]);
+    }
+    printf("\n");
+  }
+}
 Graph *initGraph(int numVertices, GraphDensity density)
 {
   Graph *graph = (Graph *)malloc(sizeof(Graph));
@@ -119,10 +133,10 @@ __global__ void computeNextQueue(int *adjacencyList, int *edgesOffset, int *edge
     for (int i = edgesOffset[current]; i < edgesOffset[current] + edgesSize[current]; ++i)
     {
       int v = adjacencyList[i];
-      if (oldVisited == INT_MAX) // Check if the node was previously unvisited
+      if (visited[v] == INT_MAX)
       {
-        int oldVisited = atomicExch(&visited[v], 1); // Atomically set visited status to 1
-        int position = atomicAdd(nextQueueSize, 1);  // Atomically add to next queue
+        atomicExch(&visited[v], 1);
+        int position = atomicAdd(nextQueueSize, 1);
         nextQueue[position] = v;
       }
     }
@@ -200,12 +214,15 @@ int main()
 
   // Allocate memory for BFS visitedand visited arrays
   int *visited = (int *)malloc(numVertices * sizeof(int));
-  for (int i = 0; i < G->numVertices; ++i)
+  for (int i = 0; i < myGraph->numVertices; ++i)
   {
     visited[i] = INT_MAX;
   }
   printf("Visited array before CUDA BFS\n");
-  printArray(visited);
+  for (int i = 0; i < myGraph->numVertices; ++i)
+  {
+    printf("%i ", visited[i]);
+  }
   clock_t startParallel, endParallel;
   startParallel = clock();
   bfsGPU(0, myGraph, visited);
@@ -213,5 +230,8 @@ int main()
   double timeTakenParallel = (double)(endParallel - startParallel) / CLOCKS_PER_SEC;
   printf("Cuda BFS took %f seconds.\n", timeTakenParallel);
   printf("Visited array after CUDA BFS\n");
-  printArray(visited);
+  for (int i = 0; i < myGraph->numVertices; ++i)
+  {
+    printf("%i ", visited[i]);
+  }
 }
